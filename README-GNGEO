@@ -1,0 +1,220 @@
+# SDL 1.2.15 — Modern Linux/X11 Compatibility
+
+This repository contains **SDL 1.2.15** with the compatibility fixes required to build and use the original SDL 1.2.15 X11 backend on modern Linux systems.
+
+The source is based on the official SDL 1.2.15 release:
+
+`SDL-1.2.15.tar.gz`
+
+The original SDL 1.2.15 source is old and its X11 code contains function declarations that are incompatible with modern X11 headers. The changes in this repository are limited to those compatibility problems.
+
+## Why this repository exists
+
+GnGeo requires **SDL 1.2.x**.
+
+The original SDL 1.2.15 does not compile cleanly against modern X11 development headers. Rather than modifying the system X11 headers or replacing SDL 1.2 with a newer SDL version, this repository preserves SDL 1.2.15 with the required source-level compatibility fixes.
+
+The resulting SDL can be installed under a separate prefix, allowing it to coexist with another SDL installation already present on the system.
+
+## Compatibility fixes
+
+The following source files were modified.
+
+### `src/video/x11/SDL_x11sym.h`
+
+Changed the `_XData32` declaration:
+
+```c
+long *
+```
+
+to:
+
+```c
+const long *
+```
+
+This matches the declaration expected by modern X11 headers.
+
+### `src/video/Xext/Xinerama/Xinerama.c`
+
+Changed:
+
+```c
+static int close_display();
+```
+
+to:
+
+```c
+static int close_display(Display *, XExtCodes *);
+```
+
+### `src/video/Xext/XME/xme.c`
+
+Changed:
+
+```c
+static int XiGMiscCloseDisplay();
+```
+
+to:
+
+```c
+static int XiGMiscCloseDisplay(Display *, XExtCodes *);
+```
+
+### `src/video/Xext/Xv/Xv.c`
+
+Corrected the function declarations for:
+
+* `xv_error_string`
+* `xv_close_display`
+* `xv_wire_to_event`
+
+These changes make the declarations compatible with the modern X11 extension headers.
+
+## Building
+
+Install the X11 development dependencies required by SDL 1.2.15.
+
+Configure SDL with its own installation prefix. For example:
+
+```bash
+./configure --prefix=/opt/sdl12
+```
+
+Then build:
+
+```bash
+make
+```
+
+Install:
+
+```bash
+make install
+```
+
+If `/opt/sdl12` requires elevated privileges:
+
+```bash
+doas make install
+```
+
+The important point is that SDL 1.2.15 is installed under its own prefix instead of replacing or modifying another SDL installation.
+
+## Installing alongside another SDL
+
+Do **not** install this SDL over an existing system SDL.
+
+Use a dedicated prefix such as:
+
+```text
+/opt/sdl12
+```
+
+After installation, the important files are located under this prefix:
+
+```text
+/opt/sdl12/bin/sdl-config
+/opt/sdl12/include/SDL/
+/opt/sdl12/lib/
+```
+
+The `sdl-config` program is particularly important because applications such as GnGeo can use it to locate this specific SDL installation.
+
+Verify it with:
+
+```bash
+/opt/sdl12/bin/sdl-config --version
+```
+
+It should report:
+
+```text
+1.2.15
+```
+
+## Using this SDL with GnGeo
+
+When configuring GnGeo, explicitly select the SDL 1.2 installation:
+
+```bash
+./configure SDL_CONFIG=/opt/sdl12/bin/sdl-config
+```
+
+This prevents the build system from accidentally selecting another `sdl-config` installed elsewhere on the machine.
+
+You can verify which SDL configuration program is being used:
+
+```bash
+/opt/sdl12/bin/sdl-config --version
+/opt/sdl12/bin/sdl-config --prefix
+```
+
+The second command should report:
+
+```text
+/opt/sdl12
+```
+
+## System isolation
+
+This installation does not require changing the system X11 headers.
+
+It also does not require removing an existing SDL installation.
+
+The separation is achieved through the installation prefix:
+
+```text
+Existing SDL installation
+        |
+        +-- system paths
+
+SDL 1.2.15
+        |
+        +-- /opt/sdl12/
+              +-- bin/
+              +-- include/
+              +-- lib/
+```
+
+Applications that specifically need this SDL should use:
+
+```text
+/opt/sdl12/bin/sdl-config
+```
+
+rather than relying on whichever `sdl-config` happens to be first in `PATH`.
+
+## Validation
+
+The SDL 1.2.15 build was validated as part of the GnGeo build process.
+
+GnGeo was successfully configured against this SDL installation and subsequently compiled and executed.
+
+The resulting GnGeo executable was able to run Neo Geo games, including **The King of Fighters '98**, confirming that the SDL installation provides the required runtime functionality.
+
+## Patch
+
+The source changes are represented by:
+
+```text
+SDL-1.2.15-modern-X11.patch
+```
+
+The patch contains only the SDL compatibility changes.
+
+SDL build artifacts and generated files are not part of the patch.
+
+## Scope
+
+This repository intentionally preserves the original SDL 1.2.15 architecture.
+
+It is **not** a port to SDL 2 or SDL 3.
+
+The purpose of this repository is to provide a reproducible SDL 1.2.15 build for legacy software that still requires SDL 1.2.x, particularly GnGeo.
+
+No system X11 headers were modified.
+
